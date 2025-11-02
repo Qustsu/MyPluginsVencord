@@ -1,12 +1,41 @@
 (function() {
+    // Регистрация настроек
+    if (window.VencordRemotePluginAPI) {
+        window.VencordRemotePluginAPI.registerPlugin({
+            name: "HelperGosHIGH",
+            settings: {
+                sourceChannelId: {
+                    type: "string",
+                    label: "ID канала с вебхуками",
+                    description: "Канал где приходят отчёты на повышение",
+                    default: "1317168942183350312"
+                },
+                targetChannelId: {
+                    type: "string",
+                    label: "ID канала для команды",
+                    description: "Канал куда отправляется команда",
+                    default: "1317168933400350748"
+                }
+            }
+        });
+    }
+    
     const { addContextMenuPatch } = Vencord.Api.ContextMenu;
     const { findByPropsLazy } = Vencord.Webpack;
     const { ComponentDispatch, Menu } = Vencord.Webpack.Common;
     
     const ChannelActions = findByPropsLazy("selectChannel");
     
+    function getSetting(key, defaultValue) {
+        if (window.VencordRemotePluginAPI) {
+            return window.VencordRemotePluginAPI.getSetting("HelperGosHIGH", key, defaultValue);
+        }
+        return defaultValue;
+    }
+    
     addContextMenuPatch("message", (children, { message, channel }) => {
-        if (!message?.embeds?.[0] || channel.id !== "1317168942183350312") return;
+        const sourceChannelId = getSetting("sourceChannelId", "1317168942183350312");
+        if (!message?.embeds?.[0] || channel.id !== sourceChannelId) return;
         
         const embed = message.embeds[0];
         
@@ -39,7 +68,7 @@
                         const prevRank = parseInt(rank) - 1;
                         const messageUrl = `https://discord.com/channels/${channel.guild_id || "@me"}/${channel.id}/${message.id}`;
                         
-                        const targetChannelId = "1317168933400350748";
+                        const targetChannelId = getSetting("targetChannelId", "1317168933400350748");
                         const command = `/повышение пользователь:<@${userId}> был:${prevRank} стал:${rank} причина:${messageUrl}`;
                         
                         ChannelActions.selectChannel({ channelId: targetChannelId, guildId: channel.guild_id });
