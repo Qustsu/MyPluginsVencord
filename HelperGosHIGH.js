@@ -132,6 +132,7 @@
     // Команда /отчётинст через API команд
     const { registerCommand } = Vencord.Api.Commands;
     const MessageActions = findByPropsLazy("sendMessage", "editMessage");
+    const RestAPI = findByPropsLazy("getAPIBaseURL");
     
     registerCommand({
         name: "отчётинст",
@@ -147,10 +148,11 @@
                     return { content: "❌ Канал аудита не найден" };
                 }
                 
-                const response = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
-                    headers: { "Authorization": (window.DiscordNative?.nativeModules?.requireModule('discord_utils').getToken?.() || "") }
+                const response = await RestAPI.get({
+                    url: `/channels/${auditChannelId}/messages`,
+                    query: { limit: 100 }
                 });
-                const messages = await response.json();
+                const messages = response.body;
                 
                 const matchingLinks = [];
                 
@@ -171,7 +173,7 @@
                 }
                 
                 if (matchingLinks.length === 0) {
-                    MessageActions.sendMessage(ctx.channel.id, { content: "❌ Отчёты не найдены" });
+                    MessageActions.sendMessage(ctx.channel.id, { content: "❌ Отчёты не найдены" }, undefined, {});
                     return;
                 }
                 
@@ -193,12 +195,12 @@
                 
                 // Отправляем все части
                 for (const chunk of chunks) {
-                    MessageActions.sendMessage(ctx.channel.id, { content: chunk });
+                    MessageActions.sendMessage(ctx.channel.id, { content: chunk }, undefined, {});
                     await new Promise(r => setTimeout(r, 300));
                 }
             } catch (err) {
                 console.error("Ошибка при поиске отчётов:", err);
-                MessageActions.sendMessage(ctx.channel.id, { content: "❌ Ошибка при поиске отчётов" });
+                MessageActions.sendMessage(ctx.channel.id, { content: "❌ Ошибка при поиске отчётов" }, undefined, {});
             }
         }
     });
