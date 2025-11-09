@@ -143,7 +143,14 @@
                 
                 console.log("[отчётинст] User:", currentUserId, "Channel:", auditChannelId);
                 
-                const token = Object.values(window.webpackChunkdiscord_app.push([[Symbol()], {}, x => x.c])).find(x => x?.exports?.default?.getToken).exports.default.getToken();
+                let token;
+                try {
+                    token = Vencord.Webpack.Common.UserStore.getCurrentUser().token || 
+                            window.DiscordNative?.nativeModules?.requireModule('discord_utils')?.getToken?.() ||
+                            localStorage.token?.replace(/"/g, "");
+                } catch (e) {
+                    return { content: "❌ Не удалось получить токен" };
+                }
                 
                 const res = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
                     headers: { "Authorization": token }
