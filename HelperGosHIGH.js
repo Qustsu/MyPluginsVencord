@@ -131,7 +131,7 @@
     
     // Команда /отчётинст через API команд
     const { registerCommand } = Vencord.Api.Commands;
-    const { RestAPI } = Vencord.Webpack.Common;
+    const RestAPI = findByPropsLazy("getAPIBaseURL", "get");
     
     registerCommand({
         name: "отчётинст",
