@@ -129,13 +129,14 @@
     
 
     
-    // Команда !отчётинст через API команд
-    const { registerCommand, unregisterCommand } = Vencord.Api.Commands;
+    // Команда /отчётинст через API команд
+    const { registerCommand } = Vencord.Api.Commands;
+    const MessageActions = findByPropsLazy("sendMessage", "editMessage");
     
     registerCommand({
         name: "отчётинст",
         description: "Найти все отчёты с упоминанием вас",
-        execute: async () => {
+        execute: async (_, ctx) => {
             try {
                 const currentUserId = UserStore.getCurrentUser().id;
                 const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
@@ -143,7 +144,7 @@
                 
                 const channel = ChannelStore.getChannel(auditChannelId);
                 if (!channel) {
-                    return { content: "Канал аудита не найден" };
+                    return { content: "❌ Канал аудита не найден" };
                 }
                 
                 const response = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
@@ -159,7 +160,8 @@
                         const fields = embed.fields || [];
                         
                         for (const field of fields) {
-                            if (field.value?.includes(`<@${currentUserId}>`)) {
+                            const rawValue = field.rawValue || field.value || "";
+                            if (rawValue.includes(`<@!${currentUserId}>`) || rawValue.includes(`<@${currentUserId}>`)) {
                                 const link = `https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`;
                                 matchingLinks.push(link);
                                 break;
@@ -168,14 +170,35 @@
                     }
                 }
                 
-                if (matchingLinks.length > 0) {
-                    return { content: "Найденные отчёты:\n" + matchingLinks.join("\n") };
-                } else {
-                    return { content: "Отчёты не найдены" };
+                if (matchingLinks.length === 0) {
+                    MessageActions.sendMessage(ctx.channel.id, { content: "❌ Отчёты не найдены" });
+                    return;
+                }
+                
+                // Разбиваем на части по 2000 символов
+                const header = `✅ Найдено отчётов: ${matchingLinks.length}\n\n`;
+                const chunks = [];
+                let currentChunk = header;
+                
+                for (const link of matchingLinks) {
+                    const line = link + "\n";
+                    if ((currentChunk + line).length > 1900) {
+                        chunks.push(currentChunk);
+                        currentChunk = line;
+                    } else {
+                        currentChunk += line;
+                    }
+                }
+                if (currentChunk) chunks.push(currentChunk);
+                
+                // Отправляем все части
+                for (const chunk of chunks) {
+                    MessageActions.sendMessage(ctx.channel.id, { content: chunk });
+                    await new Promise(r => setTimeout(r, 300));
                 }
             } catch (err) {
                 console.error("Ошибка при поиске отчётов:", err);
-                return { content: "Ошибка при поиске отчётов" };
+                MessageActions.sendMessage(ctx.channel.id, { content: "❌ Ошибка при поиске отчётов" });
             }
         }
     });
