@@ -131,7 +131,7 @@
     
     // Команда /отчётинст через API команд
     const { registerCommand } = Vencord.Api.Commands;
-    const UserSettingsProtoStore = findByPropsLazy("PreloadedUserSettingsActionCreators");
+    const { RestAPI } = Vencord.Webpack.Common;
     
     registerCommand({
         name: "отчётинст",
@@ -144,19 +144,15 @@
                 
                 console.log("[отчётинст] User:", currentUserId, "Channel:", auditChannelId);
                 
-                const token = (window.webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken();
+                const res = await RestAPI.get({ url: `/channels/${auditChannelId}/messages`, query: { limit: 100 }, retries: 2 });
                 
-                const response = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
-                    headers: { "Authorization": token }
-                });
+                console.log("[отчётинст] Response:", res.status);
                 
-                console.log("[отчётинст] Response:", response.status);
-                
-                if (!response.ok) {
+                if (!res.ok) {
                     return { content: "❌ Ошибка доступа к каналу" };
                 }
                 
-                const messages = await response.json();
+                const messages = res.body;
                 console.log("[отчётинст] Messages:", messages.length);
                 
                 const matchingLinks = [];
