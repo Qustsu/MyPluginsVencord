@@ -4,7 +4,6 @@
     const { ComponentDispatch, Menu, UserStore, ChannelStore } = Vencord.Webpack.Common;
     
     const ChannelActions = findByPropsLazy("selectChannel");
-    const MessageActions = findByPropsLazy("sendMessage");
     
     if (window.VencordRemotePluginAPI) {
         window.VencordRemotePluginAPI.registerPlugin({
