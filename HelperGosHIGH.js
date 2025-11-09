@@ -131,77 +131,59 @@
     
     // Команда /отчётинст через API команд
     const { registerCommand } = Vencord.Api.Commands;
-    const MessageActions = findByPropsLazy("sendMessage", "editMessage");
-    const RestAPI = findByPropsLazy("getAPIBaseURL");
+    const MessageStore = findByPropsLazy("getMessages", "getMessage");
     
     registerCommand({
         name: "отчётинст",
         description: "Найти все отчёты с упоминанием вас",
         execute: async (_, ctx) => {
-            try {
-                const currentUserId = UserStore.getCurrentUser().id;
-                const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
-                const guildId = getSetting("guildId", "1317168924273541130");
-                
-                const channel = ChannelStore.getChannel(auditChannelId);
-                if (!channel) {
-                    return { content: "❌ Канал аудита не найден" };
-                }
-                
-                const response = await RestAPI.get({
-                    url: `/channels/${auditChannelId}/messages`,
-                    query: { limit: 100 }
-                });
-                const messages = response.body;
-                
-                const matchingLinks = [];
-                
-                for (const msg of messages) {
-                    if (msg.embeds?.[0]) {
-                        const embed = msg.embeds[0];
-                        const fields = embed.fields || [];
-                        
-                        for (const field of fields) {
-                            const rawValue = field.rawValue || field.value || "";
-                            if (rawValue.includes(`<@!${currentUserId}>`) || rawValue.includes(`<@${currentUserId}>`)) {
-                                const link = `https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`;
-                                matchingLinks.push(link);
-                                break;
-                            }
+            const currentUserId = UserStore.getCurrentUser().id;
+            const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
+            const guildId = getSetting("guildId", "1317168924273541130");
+            
+            const messages = MessageStore.getMessages(auditChannelId)?._array || [];
+            if (messages.length === 0) {
+                return { content: "❌ Сообщения не найдены" };
+            }
+            
+            const matchingLinks = [];
+            
+            for (const msg of messages) {
+                if (msg.embeds?.[0]) {
+                    const embed = msg.embeds[0];
+                    const fields = embed.fields || [];
+                    
+                    for (const field of fields) {
+                        const rawValue = field.rawValue || field.value || "";
+                        if (rawValue.includes(`<@!${currentUserId}>`) || rawValue.includes(`<@${currentUserId}>`)) {
+                            matchingLinks.push(`https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`);
+                            break;
                         }
                     }
                 }
-                
-                if (matchingLinks.length === 0) {
-                    MessageActions.sendMessage(ctx.channel.id, { content: "❌ Отчёты не найдены" }, undefined, {});
-                    return;
-                }
-                
-                // Разбиваем на части по 2000 символов
-                const header = `✅ Найдено отчётов: ${matchingLinks.length}\n\n`;
-                const chunks = [];
-                let currentChunk = header;
-                
-                for (const link of matchingLinks) {
-                    const line = link + "\n";
-                    if ((currentChunk + line).length > 1900) {
-                        chunks.push(currentChunk);
-                        currentChunk = line;
-                    } else {
-                        currentChunk += line;
-                    }
-                }
-                if (currentChunk) chunks.push(currentChunk);
-                
-                // Отправляем все части
-                for (const chunk of chunks) {
-                    MessageActions.sendMessage(ctx.channel.id, { content: chunk }, undefined, {});
-                    await new Promise(r => setTimeout(r, 300));
-                }
-            } catch (err) {
-                console.error("Ошибка при поиске отчётов:", err);
-                MessageActions.sendMessage(ctx.channel.id, { content: "❌ Ошибка при поиске отчётов" }, undefined, {});
             }
+            
+            if (matchingLinks.length === 0) {
+                return { content: "❌ Отчёты не найдены" };
+            }
+            
+            // Разбиваем на части по 2000 символов
+            const header = `✅ Найдено отчётов: ${matchingLinks.length}\n\n`;
+            const chunks = [];
+            let currentChunk = header;
+            
+            for (const link of matchingLinks) {
+                const line = link + "\n";
+                if ((currentChunk + line).length > 1900) {
+                    chunks.push(currentChunk);
+                    currentChunk = line;
+                } else {
+                    currentChunk += line;
+                }
+            }
+            if (currentChunk) chunks.push(currentChunk);
+            
+            return { content: chunks[0] };
         }
     });
     
