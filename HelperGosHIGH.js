@@ -142,6 +142,7 @@
             const guildId = getSetting("guildId", "1317168924273541130");
             
             const messages = MessageStore.getMessages(auditChannelId)?._array || [];
+            console.log("[отчётинст] Messages:", messages.length);
             
             const links = [];
             for (const msg of messages) {
@@ -149,13 +150,17 @@
                     const fields = msg.embeds[0].fields || [];
                     for (const field of fields) {
                         const rawValue = field.rawValue || field.value || "";
+                        console.log("[отчётинст] Field:", field.rawName, "Value:", rawValue);
                         if (field.rawName?.includes("Повышает") && (rawValue.includes(`<@!${currentUserId}>`) || rawValue.includes(`<@${currentUserId}>`))) {
                             links.push(`https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`);
+                            console.log("[отчётинст] Match found:", msg.id);
                             break;
                         }
                     }
                 }
             }
+            
+            console.log("[отчётинст] Total links:", links.length);
             
             if (links.length === 0) {
                 return { content: "❌ Отчёты не найдены" };
