@@ -53,7 +53,8 @@
     }
     
     function getSetting(key, defaultValue) {
-        return window.VencordRemotePluginAPI?.getSetting("HelperGosHIGH", key, defaultValue) ?? defaultValue;
+        const value = window.VencordRemotePluginAPI?.getSetting("HelperGosHIGH", key, defaultValue);
+        return value !== undefined ? value : defaultValue;
     }
     
     addContextMenuPatch("message", (children, { message, channel }) => {
@@ -130,7 +131,7 @@
     // Команда !отчётинст
     const originalSendMessage = MessageActions.sendMessage;
     MessageActions.sendMessage = function(channelId, message, ...args) {
-        if (message.content === "!отчётинст") {
+        if (message?.content === "!отчётинст") {
             (async () => {
                 try {
                     const currentUserId = UserStore.getCurrentUser().id;
@@ -175,10 +176,10 @@
                     console.error("Ошибка при поиске отчётов:", err);
                 }
             })();
-            return;
+            return Promise.resolve();
         }
         
-        return originalSendMessage.call(this, channelId, message, ...args);
+        return originalSendMessage.apply(this, [channelId, message, ...args]);
     };
     
     console.log("[HelperGosHIGH] Плагин загружен");
