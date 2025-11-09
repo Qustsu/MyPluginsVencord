@@ -131,7 +131,7 @@
     
     // Команда /отчётинст через API команд
     const { registerCommand } = Vencord.Api.Commands;
-    const { find } = Vencord.Webpack;
+    const MessageStore = findByPropsLazy("getMessages", "getMessage");
     
     registerCommand({
         name: "отчётинст",
@@ -141,19 +141,7 @@
             const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
             const guildId = getSetting("guildId", "1317168924273541130");
             
-            const SearchActions = find(m => m.searchMessages && m.clearSearchResults);
-            const SearchStore = find(m => m.getSearchResults);
-            
-            if (!SearchActions || !SearchStore) {
-                return { content: "❌ Поиск недоступен" };
-            }
-            
-            await SearchActions.searchMessages(auditChannelId, { mentions: [currentUserId] });
-            
-            await new Promise(r => setTimeout(r, 1000));
-            
-            const results = SearchStore.getSearchResults(auditChannelId);
-            const messages = results?.messages?.flat() || [];
+            const messages = MessageStore.getMessages(auditChannelId)?._array || [];
             
             const links = [];
             for (const msg of messages) {
@@ -194,4 +182,3 @@
     
     console.log("[HelperGosHIGH] Плагин загружен");
 })();
-//ww
