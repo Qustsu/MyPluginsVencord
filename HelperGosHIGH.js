@@ -131,7 +131,7 @@
     
     // Команда /отчётинст через API команд
     const { registerCommand } = Vencord.Api.Commands;
-    const MessageStore = findByPropsLazy("getMessages", "getMessage");
+    const UserSettingsProtoStore = findByPropsLazy("PreloadedUserSettingsActionCreators");
     
     registerCommand({
         name: "отчётинст",
@@ -141,11 +141,17 @@
             const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
             const guildId = getSetting("guildId", "1317168924273541130");
             
-            const messages = MessageStore.getMessages(auditChannelId)?._array || [];
-            if (messages.length === 0) {
-                return { content: "❌ Сообщения не найдены" };
+            const token = (window.webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken();
+            
+            const response = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
+                headers: { "Authorization": token }
+            });
+            
+            if (!response.ok) {
+                return { content: "❌ Ошибка доступа к каналу" };
             }
             
+            const messages = await response.json();
             const matchingLinks = [];
             
             for (const msg of messages) {
@@ -154,7 +160,7 @@
                     const fields = embed.fields || [];
                     
                     for (const field of fields) {
-                        const rawValue = field.rawValue || field.value || "";
+                        const rawValue = field.value || "";
                         if (rawValue.includes(`<@!${currentUserId}>`) || rawValue.includes(`<@${currentUserId}>`)) {
                             matchingLinks.push(`https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`);
                             break;
@@ -167,7 +173,6 @@
                 return { content: "❌ Отчёты не найдены" };
             }
             
-            // Разбиваем на части по 2000 символов
             const header = `✅ Найдено отчётов: ${matchingLinks.length}\n\n`;
             const chunks = [];
             let currentChunk = header;
