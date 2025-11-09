@@ -128,59 +128,58 @@
         }
     });
     
-    // Команда !отчётинст
-    const originalSendMessage = MessageActions.sendMessage;
-    MessageActions.sendMessage = function(channelId, message, ...args) {
-        if (message?.content === "!отчётинст") {
-            (async () => {
-                try {
-                    const currentUserId = UserStore.getCurrentUser().id;
-                    const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
-                    const guildId = getSetting("guildId", "1317168924273541130");
-                    
-                    const channel = ChannelStore.getChannel(auditChannelId);
-                    if (!channel) {
-                        console.error("Канал аудита не найден");
-                        return;
-                    }
-                    
-                    // Получаем сообщения из канала
-                    const messages = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
-                        headers: { "Authorization": window.GLOBAL_ENV.RELEASE_CHANNEL }
-                    }).then(r => r.json());
-                    
-                    const matchingLinks = [];
-                    
-                    for (const msg of messages) {
-                        if (msg.embeds?.[0]) {
-                            const embed = msg.embeds[0];
-                            const fields = embed.fields || [];
-                            
-                            for (const field of fields) {
-                                if (field.value?.includes(`<@${currentUserId}>`)) {
-                                    const link = `https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`;
-                                    matchingLinks.push(link);
-                                    break;
-                                }
+
+    
+    // Команда !отчётинст через API команд
+    const { registerCommand, unregisterCommand } = Vencord.Api.Commands;
+    
+    registerCommand({
+        name: "отчётинст",
+        description: "Найти все отчёты с упоминанием вас",
+        execute: async () => {
+            try {
+                const currentUserId = UserStore.getCurrentUser().id;
+                const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
+                const guildId = getSetting("guildId", "1317168924273541130");
+                
+                const channel = ChannelStore.getChannel(auditChannelId);
+                if (!channel) {
+                    return { content: "Канал аудита не найден" };
+                }
+                
+                const response = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
+                    headers: { "Authorization": (window.DiscordNative?.nativeModules?.requireModule('discord_utils').getToken?.() || "") }
+                });
+                const messages = await response.json();
+                
+                const matchingLinks = [];
+                
+                for (const msg of messages) {
+                    if (msg.embeds?.[0]) {
+                        const embed = msg.embeds[0];
+                        const fields = embed.fields || [];
+                        
+                        for (const field of fields) {
+                            if (field.value?.includes(`<@${currentUserId}>`)) {
+                                const link = `https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`;
+                                matchingLinks.push(link);
+                                break;
                             }
                         }
                     }
-                    
-                    if (matchingLinks.length > 0) {
-                        const response = "Найденные отчёты:\n" + matchingLinks.join("\n");
-                        ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: response });
-                    } else {
-                        ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: "Отчёты не найдены" });
-                    }
-                } catch (err) {
-                    console.error("Ошибка при поиске отчётов:", err);
                 }
-            })();
-            return Promise.resolve();
+                
+                if (matchingLinks.length > 0) {
+                    return { content: "Найденные отчёты:\n" + matchingLinks.join("\n") };
+                } else {
+                    return { content: "Отчёты не найдены" };
+                }
+            } catch (err) {
+                console.error("Ошибка при поиске отчётов:", err);
+                return { content: "Ошибка при поиске отчётов" };
+            }
         }
-        
-        return originalSendMessage.apply(this, [channelId, message, ...args]);
-    };
+    });
     
     console.log("[HelperGosHIGH] Плагин загружен");
 })();
