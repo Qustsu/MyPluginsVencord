@@ -137,58 +137,72 @@
         name: "отчётинст",
         description: "Найти все отчёты с упоминанием вас",
         execute: async (_, ctx) => {
-            const currentUserId = UserStore.getCurrentUser().id;
-            const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
-            const guildId = getSetting("guildId", "1317168924273541130");
-            
-            const token = (window.webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken();
-            
-            const response = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
-                headers: { "Authorization": token }
-            });
-            
-            if (!response.ok) {
-                return { content: "❌ Ошибка доступа к каналу" };
-            }
-            
-            const messages = await response.json();
-            const matchingLinks = [];
-            
-            for (const msg of messages) {
-                if (msg.embeds?.[0]) {
-                    const embed = msg.embeds[0];
-                    const fields = embed.fields || [];
-                    
-                    for (const field of fields) {
-                        const rawValue = field.value || "";
-                        if (rawValue.includes(`<@!${currentUserId}>`) || rawValue.includes(`<@${currentUserId}>`)) {
-                            matchingLinks.push(`https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`);
-                            break;
+            try {
+                const currentUserId = UserStore.getCurrentUser().id;
+                const auditChannelId = getSetting("auditChannelId", "1317168942183350312");
+                const guildId = getSetting("guildId", "1317168924273541130");
+                
+                console.log("[отчётинст] User:", currentUserId, "Channel:", auditChannelId);
+                
+                const token = (window.webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken();
+                
+                const response = await fetch(`https://discord.com/api/v9/channels/${auditChannelId}/messages?limit=100`, {
+                    headers: { "Authorization": token }
+                });
+                
+                console.log("[отчётинст] Response:", response.status);
+                
+                if (!response.ok) {
+                    return { content: "❌ Ошибка доступа к каналу" };
+                }
+                
+                const messages = await response.json();
+                console.log("[отчётинст] Messages:", messages.length);
+                
+                const matchingLinks = [];
+                
+                for (const msg of messages) {
+                    if (msg.embeds?.[0]) {
+                        const embed = msg.embeds[0];
+                        const fields = embed.fields || [];
+                        
+                        for (const field of fields) {
+                            const rawValue = field.value || "";
+                            if (rawValue.includes(`<@!${currentUserId}>`) || rawValue.includes(`<@${currentUserId}>`)) {
+                                matchingLinks.push(`https://discord.com/channels/${guildId}/${auditChannelId}/${msg.id}`);
+                                console.log("[отчётинст] Found:", msg.id);
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            
-            if (matchingLinks.length === 0) {
-                return { content: "❌ Отчёты не найдены" };
-            }
-            
-            const header = `✅ Найдено отчётов: ${matchingLinks.length}\n\n`;
-            const chunks = [];
-            let currentChunk = header;
-            
-            for (const link of matchingLinks) {
-                const line = link + "\n";
-                if ((currentChunk + line).length > 1900) {
-                    chunks.push(currentChunk);
-                    currentChunk = line;
-                } else {
-                    currentChunk += line;
+                
+                console.log("[отчётинст] Total found:", matchingLinks.length);
+                
+                if (matchingLinks.length === 0) {
+                    return { content: "❌ Отчёты не найдены" };
                 }
+                
+                const header = `✅ Найдено отчётов: ${matchingLinks.length}\n\n`;
+                const chunks = [];
+                let currentChunk = header;
+                
+                for (const link of matchingLinks) {
+                    const line = link + "\n";
+                    if ((currentChunk + line).length > 1900) {
+                        chunks.push(currentChunk);
+                        currentChunk = line;
+                    } else {
+                        currentChunk += line;
+                    }
+                }
+                if (currentChunk) chunks.push(currentChunk);
+                
+                return { content: chunks[0] };
+            } catch (err) {
+                console.error("[отчётинст] Error:", err);
+                return { content: "❌ Ошибка: " + err.message };
             }
-            if (currentChunk) chunks.push(currentChunk);
-            
-            return { content: chunks[0] };
         }
     });
     
